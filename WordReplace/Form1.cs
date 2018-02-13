@@ -7,11 +7,12 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using Aspose.Words;
+using DocumentFormat.OpenXml.Wordprocessing;
 using System.IO;
 using System.Threading;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using DocumentFormat.OpenXml.Packaging;
 
 namespace WordReplace
 {
@@ -27,7 +28,11 @@ namespace WordReplace
             textBox1.Text = config.GetConfigValue("txt1");
             textBox2.Text = config.GetConfigValue("txt2");
             textBox3.Text = config.GetConfigValue("txt3");
-            radioButton1.Checked = true;
+            textBox4.Text = config.GetConfigValue("txt4");
+            textBox5.Text = config.GetConfigValue("txt5");
+            textBox6.Text = config.GetConfigValue("txt6");
+            textBox7.Text = config.GetConfigValue("txt7");
+            textBox8.Text = config.GetConfigValue("txt8");
 
         }
 
@@ -97,11 +102,7 @@ namespace WordReplace
                 }
             }
         }
-        void SaveDocx(string filename)
-        {
-            Document doc = new Document(filename);
-            doc.Save(filename+"x",SaveFormat.Docx);
-        }
+        
         
         
         private void Replace(object filename)
@@ -118,75 +119,50 @@ namespace WordReplace
                    // filename = filename.ToString() + "x";
                    // m_SyncContext.Post(ProgressPlus, null);
                 }
-                var doc = new Document(filename.ToString());
-                
-                DocumentBuilder db = new DocumentBuilder(doc);
-                db.MoveToDocumentEnd();
-                db.Write("\u0020\u0020");
-                doc.Save(filename.ToString());
-                doc = new Document(filename.ToString());
-                Regex regex1 = new Regex("@|&|\u3000|\u0020|\n");
-                doc.Range.Replace(regex1, String.Empty);
-                //Regex regex2 = new Regex("\r\r");
-                //doc.Range.Replace(regex2, String.Empty);
-                if (radioButton1.Checked)
-                    ReplaceAandB(doc);
-                else if (radioButton2.Checked)
-                    ReplaceAB(doc);
-                Regex regex = new Regex("\v");
-                doc.Range.Replace(regex, new MyReplaceEvaluator(), true);                
-                         
-                NodeCollection nc;
-                //char[] values = doc.GetText().ToCharArray();
-                
-
-                //DocumentBuilder builder = new DocumentBuilder(doc);
-                
-                nc = doc.GetChildNodes(NodeType.Paragraph, true);
-                foreach (Paragraph r in nc)
+                WordprocessingDocument doc = WordprocessingDocument.Open(filename.ToString(), true);
+                Body body = doc.MainDocumentPart.Document.Body;
+                foreach (Paragraph paragraph in body.Elements<Paragraph>())
                 {
-                    string txt = r.GetText();
-                    if (txt.Length > 0)
+                    if (checkBox6.Checked)
                     {
-
-                        //r.ParagraphFormat.ClearFormatting();
-                        r.ParagraphFormat.FirstLineIndent = 0;
-                        r.Range.Text.Trim();
+                        ReplaceAB(paragraph);
+                    }
+                    if (checkBox2.Checked)
+                    {
+                        DeleteBefore(paragraph);
+                    }
+                    if (checkBox7.Checked)
+                    {
+                        DeleteAfter(paragraph);
+                    }
+                    
+                    foreach (Run run in paragraph.Elements<Run>())
+                    {
+                        if (checkBox1.Checked)
+                        {
+                            ReplaceAandB(run);
+                        }
                         
+                        if (checkBox3.Checked)
+                        {
+                            DeleteAlpha(run);
+                        }
+                        if (checkBox4.Checked)
+                        {
+                            DeleteNumber(run);
+                        }
+                        if (checkBox5.Checked)
+                        {
+                            DeleteLink(run);
+                        }
+
+
                     }
                 }
-
-                nc = doc.GetChildNodes(NodeType.Run,true);
-                foreach(Run r in nc)
-                {
-                    string txt = r.GetText();
-                    if(r.ParentParagraph.ParagraphFormat.Alignment == ParagraphAlignment.Center)
-                    {
-                        regex1 = new Regex(r.ParentParagraph.GetText().Trim());
-                        r.ParentParagraph.NextSibling.Range.Replace(regex1,String.Empty);
-                        continue;
-                    }
-                    if (txt.Length > 20)
-                    {
-                        
-                       
-                        r.ParentParagraph.ParagraphFormat.ClearFormatting();
-                        r.ParentParagraph.ParagraphFormat.FirstLineIndent = 0;
-                        r.Text=r.Range.Text.TrimStart();
-                        if (r.PreviousSibling == null)
-                            continue;
-                        if (!r.PreviousSibling.GetText().EndsWith("\r"))
-                            continue;
-                        r.Text = r.Text.Insert(0, "\u3000\u3000");
-                        
-                    }
-                }
-
-                //TwoBlank(doc);
+                    
                 
-                //doc.Range.Replace("\v", "\r", true, true);
-                //doc.Replace("", "kkkk", false, false);
-                doc.Save(filename.ToString());
+                doc.Save();
+                doc.Dispose();
 
                 
                 m_SyncContext.Post(ProgressPlus, null);
@@ -233,120 +209,186 @@ namespace WordReplace
             config["txt1"] = textBox1.Text;
             config["txt2"] = textBox2.Text;
             config["txt3"] = textBox3.Text;
+            config["txt4"] = textBox4.Text;
+            config["txt5"] = textBox5.Text;
+            config["txt6"] = textBox6.Text;
+            config["txt7"] = textBox7.Text;
+            config["txt8"] = textBox8.Text;
         }
 
-        void ReplaceAandB(Document doc)
+        void ReplaceAandB(Run run)
         {
-            if (textBox1.Text.Trim() != "")
+            string a = textBox4.Text;
+            string b = textBox5.Text;
+            if(run.InnerText.Contains(a))
             {
-                string orig = textBox1.Text;
-                string repl = textBox2.Text;
-                string[] orig1 = orig.Split('|');
-                string[] repl1 = repl.Split('|');
-                int i = 0;
-                for (; i < orig1.Length; i++)
+                string temp = run.InnerText.Replace(a,b);
+                Text text=run.Elements<Text>().First();
+                text.Remove();
+                run.Append(new Text(temp));
+            }
+        }
+
+        void ReplaceAB(Paragraph para)
+        {
+            string a = textBox8.Text;
+            string b = textBox7.Text;
+            ;
+            if(para.InnerText.Contains(a)&&para.InnerText.Contains(b))
+            {
+                int flag = 0;
+                List<Run> list = new List<Run>();
+                foreach(Run r in para.Elements<Run>())
                 {
-                    doc.Range.Replace(orig1[i], repl1[i], true, true);
-                }
-            }
-        }
-
-        void ReplaceAB(Document doc)
-        {
-            if (textBox1.Text.Trim() != "")
-            {
-                string orig = textBox1.Text;
-                string repl = textBox2.Text;
-                string[] orig1 = orig.Split('|');
-
-                Regex regex = new Regex(orig1[0]+".+"+orig1[1]);
-                doc.Range.Replace(regex, orig1[0] + repl + orig1[1]);
-            }
-        }
-
-        void TwoBlank(Document doc)
-        {
-            Regex regex = new Regex("\r(.{10,}?)\r");
-            doc.Range.Replace(regex, new MyReplaceEvaluator2(),true);
-        }
-
-        private void button5_Click(object sender, EventArgs e)
-        {
-            DirectoryInfo theFolder = new DirectoryInfo(textBox3.Text);
-            progressBar1.Maximum = theFolder.GetFiles("*.doc*").Length;
-            progressBar1.Value = 0;
-            Thread th = new Thread(MoveNoTitle);
-            th.Start();
-        }
-
-        void MoveNoTitle()
-        {
-            if (!Directory.Exists(textBox3.Text+@"\notitle"))//如果不存在就创建file文件夹
-            {
-                Directory.CreateDirectory(textBox3.Text + @"\notitle");
-            }
-            DirectoryInfo theFolder = new DirectoryInfo(textBox3.Text);
-            
-            foreach (FileInfo NextFile in theFolder.GetFiles())
-            {
-                if (NextFile.Extension.Equals(".doc") || NextFile.Extension.Equals(".docx"))
-                {
-                    m_SyncContext.Post(ProgressPlus, null);
-                    if (NextFile.Name.Contains("$"))
+                    if(r.InnerText.Contains(a)&&flag==0)
                     {
+                        if(r.InnerText.Contains(b))
+                        {
+                            string s1= r.InnerText.Substring(0, r.InnerText.IndexOf(a) + a.Length);
+                            string s2 = r.InnerText.Substring(r.InnerText.IndexOf(b));
+                            Text t1 = r.Elements<Text>().First();
+                            t1.Remove();
+                            r.Append(new Text(s1+ textBox2.Text+s2));
+                            continue;
+                        }
+                        string temp = r.InnerText.Substring(0,r.InnerText.IndexOf(a)+a.Length) ;
+                        Text text = r.Elements<Text>().First();
+                        text.Remove();
+                        r.Append(new Text(temp));
+                        flag = 1;
                         continue;
+                        
                     }
-                    m_SyncContext.Post(SetTextSafePost, NextFile.Name);
-                    Document doc = new Document(NextFile.FullName);
-                    NodeCollection nc = doc.GetChildNodes(NodeType.Run, true);
-                    int i = 0;
-                    foreach (Run r in nc)
+                    if(flag==1)
                     {
-                        i++;
-                        if(i>10)
+                        if(r.InnerText.Contains(b))
                         {
-                            File.Move(NextFile.FullName, NextFile.Directory.FullName + @"\\notitle\\" + NextFile.Name);
-                            break;
+                            string temp = r.InnerText.Substring(r.InnerText.IndexOf(b));
+                            Text text = r.Elements<Text>().First();
+                            text.Remove();
+                            r.Append(new Text(textBox2.Text+temp));
                         }
-                        string txt = r.GetText();
-                        if (r.ParentParagraph.ParagraphFormat.Alignment == ParagraphAlignment.Center)
+                        else
                         {
-                            break;
+                            list.Add(r);
+                            //r.Remove();
                         }
                     }
+                }
+                foreach(Run rr in list)
+                {
+                    rr.Remove();
+                }
+                
+                
+            }
+        }
+        void DeleteAlpha(Run run)
+        {
+            if (run.Elements<Text>().Count()==0) return;
+            string strRemoved = Regex.Replace(run.InnerText, "[a - z]", "", RegexOptions.IgnoreCase);
+            Text text = run.Elements<Text>().First();
+            text.Remove();
+            run.Append(new Text(strRemoved));
+        }
 
+        void DeleteNumber(Run run)
+        {
+            if (run.Elements<Text>().Count() == 0) return;
+            string strRemoved = Regex.Replace(run.InnerText, @"\d{7,11}$", "", RegexOptions.IgnoreCase);
+            Text text = run.Elements<Text>().First();
+            text.Remove();
+            run.Append(new Text(strRemoved));
+        }
+
+        void DeleteLink(Run run)
+        {
+            Regex r = new Regex("<w:rStyle(.)*?/>");
+            //run.InnerXml = r.Replace(run.InnerXml, "");
+            if (run.InnerText.Contains("HYPERLINK"))
+            {
+
+                //Text text = run.Elements<Text>().First();
+                //text.Remove();
+                r = new Regex("<w:fldChar(.)*?/>");
+                //run.InnerXml = r.Replace(run.InnerXml,"<w:t></w:t>");
+                Paragraph pp = (Paragraph)run.Parent;
+                run.Remove();
+                pp.InnerXml = r.Replace(pp.InnerXml,"");
+                r = new Regex("<w:rStyle(.)*?/>");
+                pp.InnerXml = r.Replace(pp.InnerXml, "");
+
+            }
+        }
+
+        void DeleteBefore(Paragraph p)
+        {
+            string a = textBox6.Text;
+            List<Run> list = new List<Run>();
+            if(p.InnerText.Contains(a))
+            {
+                foreach(Run r in p.Elements<Run>())
+                {
+                    if(!r.InnerText.Contains(a))
+                    {
+                        list.Add(r);
+                        //r.Remove();
+                    }
+                    else
+                    {
+                        string temp = r.InnerText.Substring(r.InnerText.IndexOf(a)+a.Length);
+                        Text text = r.Elements<Text>().First();
+                        text.Remove();
+                        r.Append(new Text(temp));
+                        foreach(Run rr in list)
+                        {
+                            rr.Remove();
+                        }
+                        return;
+                    }
                 }
             }
-
         }
-    }
 
-    class MyReplaceEvaluator : IReplacingCallback
-    {
-        /// <summary>
-        /// This is called during a replace operation each time a match is found.
-        /// This method appends a number to the match string and returns it as a replacement string.
-        /// </summary>
-        ReplaceAction IReplacingCallback.Replacing(ReplacingArgs e)
+        void DeleteAfter(Paragraph p)
         {
-            e.Replacement = "\r";
-            
-            return ReplaceAction.Replace;
+            string a = textBox1.Text;
+            int flag = 0;
+            List<Run> list = new List<Run>();
+            if (p.InnerText.Contains(a))
+            {
+                foreach (Run r in p.Elements<Run>())
+                {
+                    if (r.InnerText.Contains(a)&&flag==0)
+                    {
+                        string temp = r.InnerText.Substring(0,r.InnerText.IndexOf(a));
+                        Text text = r.Elements<Text>().First();
+                        
+                        text.Remove();
+                        r.Append(new Text(temp));
+                        flag = 1;
+                    }
+                    if(flag==1)
+                    {
+                        list.Add(r);
+                        //r.Remove();
+                    }
+                }
+            }
+            foreach(Run rr in list)
+            {
+                rr.Remove();
+            }
         }
+
+
+
+
+
+
+
     }
 
-    class MyReplaceEvaluator2 : IReplacingCallback
-    {
-        /// <summary>
-        /// This is called during a replace operation each time a match is found.
-        /// This method appends a number to the match string and returns it as a replacement string.
-        /// </summary>
-        ReplaceAction IReplacingCallback.Replacing(ReplacingArgs e)
-        {
-
-            e.Replacement = "\r";
-            return ReplaceAction.Replace;
-        }
-    }
+   
 
 }
